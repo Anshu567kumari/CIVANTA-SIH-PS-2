@@ -1,6 +1,33 @@
 # GIS + Routing — Person 2 (Anshu)
 
-**Status: Not included in this merge.**
+### 🛣️ GIS + Risk-Aware Routing Progress
+
+
+
+The current implementation connects the **OSM road network with our risk database** using the `road_id` / OSM way ID. The database contains 1,401 road records with `risk_score` and `predicted_disruption` values.
+
+### Completed
+
+* Integrated **OpenStreetMap road network** using OSMnx.
+* Added start and destination coordinate inputs.
+* Implemented **standard shortest-path routing**.
+* Implemented **risk-aware routing** using our team's road-risk data.
+* Matched OSM `way/{id}` values with the database's `road_id`.
+* Added road **risk scores and predicted disruptions** as routing factors.
+* Added adjustable **Risk Weight** and **Disruption Penalty**.
+* Added route statistics:
+
+  * Distance
+  * Average risk
+  * Number of disrupted roads
+* Added **Standard Route vs Risk-Aware Route** comparison.
+* Added an interactive **Folium GIS map** showing both routes, start point, and destination.
+* Added a **Streamlit interface** for running and testing the routing system.
+
+### Current Status
+
+The basic GIS + risk-aware routing prototype is implemented and connected to our provided database.
+
 
 ## Planned scope (from team roster)
 
