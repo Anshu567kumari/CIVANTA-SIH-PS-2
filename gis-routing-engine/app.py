@@ -1,237 +1,1050 @@
-import os
-import folium
+# =========================================================
+# NER LOGISTICS ACCESSIBILITY
+# GIS + RISK-AWARE ROUTING SYSTEM
+# =========================================================
+
+import streamlit as st
+import pandas as pd
+import numpy as np
 import networkx as nx
 import osmnx as osm
-import pandas as pd
-import streamlit as st
-from streamlit_folium import st_folium
-from streamlit_oauth import OAuth2Component
-from geopy.geocoders import Nominatim
+import folium
 
-# ---------------------------------------------------------
-# 1. PAGE CONFIG & HEADER
-# ---------------------------------------------------------
+from streamlit_folium import st_folium
+
+
+# =========================================================
+# 1. PAGE CONFIGURATION
+# =========================================================
+
 st.set_page_config(
-    page_title="NER AI Logistics Routing System",
-    page_icon="🚚",
+    page_title="NER Logistics Routing",
+    page_icon="🛣️",
     layout="wide"
 )
 
-osm.settings.user_agent = "ner_sih_routing_app_v1"
 
-# ---------------------------------------------------------
-# 2. GOOGLE OAUTH CONFIGURATION
-# ---------------------------------------------------------
-CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID")
-CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "YOUR_GOOGLE_CLIENT_SECRET")
-AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-TOKEN_URL = "https://oauth2.googleapis.com/token"
-REVOKE_TOKEN_URL = "https://oauth2.googleapis.com/revoke"
+# =========================================================
+# 2. TITLE
+# =========================================================
 
-oauth2 = OAuth2Component(CLIENT_ID, CLIENT_SECRET, AUTHORIZE_URL, TOKEN_URL, TOKEN_URL, REVOKE_TOKEN_URL)
+st.title("🛣️ NER Logistics Accessibility & Risk-Aware Routing")
 
-# ---------------------------------------------------------
-# 3. AUTHENTICATION CHECK & ROUTING GATEKEEPER
-# ---------------------------------------------------------
-if 'token' not in st.session_state:
-    st.title("Welcome to NER AI Logistics & Routing System")
-    st.write("Address logistics disruptions in North-East India by dynamically avoiding high-risk, landslide-prone, and flooded corridors.")
+st.markdown(
+    """
+    **GIS + AI-assisted road risk routing prototype**
+
+    This system compares:
     
-    st.subheader("Get Started")
-    result = oauth2.authorize_button(
-        name="Get Started with Google",
-        icon="https://www.google.com/favicon.ico",
-        redirect_uri="http://localhost:8501",
-        scope="openid email profile",
+    - 🚗 Standard shortest route
+    - 🛡️ Risk-aware route
+    
+    using OpenStreetMap road data and the provided
+    road risk prediction database.
+    """
+)
+
+
+# =========================================================
+# 3. LOAD ROAD RISK DATA
+# =========================================================
+
+@st.cache_data
+def load_risk_data():
+
+    csv_path = "road_risk_scores.csv"
+
+    df = pd.read_csv(csv_path)
+
+    # Make sure expected columns exist
+    required_columns = [
+        "road_id",
+        "risk_score",
+        "predicted_disruption"
+    ]
+
+    for column in required_columns:
+
+        if column not in df.columns:
+
+            raise ValueError(
+                f"Missing required column: {column}"
+            )
+
+    # Convert values to numeric
+    df["risk_score"] = pd.to_numeric(
+        df["risk_score"],
+        errors="coerce"
     )
-    
-    if result and 'token' in result:
-        st.session_state['token'] = result['token']
-        st.session_state['user_email'] = result.get('id_token', {}).get('email', 'User')
-        st.rerun()
 
-else:
-    # Sidebar Logout option
-    st.sidebar.success("Logged in successfully")
-    if st.sidebar.button("Logout"):
-        del st.session_state['token']
-        st.rerun()
+    df["predicted_disruption"] = pd.to_numeric(
+        df["predicted_disruption"],
+        errors="coerce"
+    )
 
-    st.title("🚛 AI-Enabled Risk-Aware Routing System for NER")
-    st.markdown("""
-    *Addressing logistics disruptions in North-East India by dynamically avoiding high-risk, landslide-prone, and flooded corridors.*
-    """)
+    # Remove invalid rows
+    df = df.dropna(
+        subset=[
+            "road_id",
+            "risk_score"
+        ]
+    )
 
-    # ---------------------------------------------------------
-    # 4. DATA LOADING & PREPROCESSING
-    # ---------------------------------------------------------
-    @st.cache_data
-    def load_risk_data(csv_path="road_risk_scores.csv"):
-        if not os.path.exists(csv_path):
-            st.error(f"Dataset '{csv_path}' not found! Please place it in the same directory.")
-            return {}
-        
-        df = pd.read_csv(csv_path)
-        risk_dict = df.set_index('road_id').to_dict(orient='index')
-        return risk_dict
+    return df
 
-    risk_lookup = load_risk_data()
 
-    # ---------------------------------------------------------
-    # 5. ROUTE GRAPH CREATION USING COORDINATES
-    # ---------------------------------------------------------
-    @st.cache_resource
-    def load_road_network_by_coords(lat, lon, dist=3000):
-        G = osm.graph_from_point((lat, lon), dist=dist, network_type='drive')
-        return G
+# =========================================================
+# 4. LOAD DATA
+# =========================================================
 
-    def apply_risk_weights(G, risk_data, alpha=0.05, beta=10.0):
-        G_weighted = G.copy()
-        
-        for u, v, k, data in G_weighted.edges(keys=True, data=True):
-            osmid = data.get('osmid')
-            
-            if isinstance(osmid, list):
-                way_ids = [f"way/{id_val}" for id_val in osmid]
-            else:
-                way_ids = [f"way/{osmid}"] if osmid else []
-                
-            r_score = 0.0
-            p_disruption = 0
-            
-            for way_id in way_ids:
-                if way_id in risk_data:
-                    r_score = max(r_score, risk_data[way_id]['risk_score'])
-                    p_disruption = max(p_disruption, risk_data[way_id]['predicted_disruption'])
-                    
-            length = data.get('length', 1.0)
-            
-            risk_penalty = 1 + (alpha * r_score) + (beta * p_disruption)
-            data['risk_cost'] = length * risk_penalty
-            data['risk_score_val'] = r_score
-            data['is_disrupted'] = p_disruption
-            
-        return G_weighted
+try:
 
-    # ---------------------------------------------------------
-    # 6. SIDEBAR CONTROLS & ANY-LOCATION SELECTOR
-    # ---------------------------------------------------------
-    st.sidebar.header("⚙️ Routing & Model Parameters")
+    risk_df = load_risk_data()
 
-    st.sidebar.subheader("Risk Weight Tuning")
-    alpha = st.sidebar.slider("Risk Score Penalty Multiplier (α)", 0.0, 0.2, 0.05, step=0.01)
-    beta = st.sidebar.slider("Disruption Avoidance Penalty (β)", 1.0, 50.0, 15.0, step=1.0)
+except Exception as e:
 
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📍 Location Selector")
+    st.error(
+        f"Could not load risk database: {e}"
+    )
 
-    CITY_PRESETS = {
-        "Guwahati, Assam": (26.1445, 91.7362),
-        "Shillong, Meghalaya": (25.5788, 91.8933),
-        "Silchar, Assam": (24.8333, 92.7789),
-        "Dimapur, Nagaland": (25.9060, 93.7271),
-        "Itanagar, Arunachal Pradesh": (27.0844, 93.6053),
-        "Custom Search / Coordinates": None
-    }
+    st.stop()
 
-    selected_preset = st.sidebar.selectbox("Select Quick Region Preset", list(CITY_PRESETS.keys()))
-    search_place = st.sidebar.text_input("Or Type Any City/Place Name", value="")
 
-    default_lat, default_lon = 26.1445, 91.7362
+# =========================================================
+# 5. SIDEBAR
+# =========================================================
 
-    if search_place.strip():
-        geolocator = Nominatim(user_agent="ner_sih_routing_app_v1")
+st.sidebar.header("📍 Route Settings")
+
+
+# ---------------------------------------------------------
+# Default Guwahati coordinates
+# ---------------------------------------------------------
+
+DEFAULT_START_LAT = 26.1445
+DEFAULT_START_LON = 91.7362
+
+DEFAULT_END_LAT = 26.1158
+DEFAULT_END_LON = 91.7086
+
+
+# ---------------------------------------------------------
+# Start location
+# ---------------------------------------------------------
+
+st.sidebar.subheader("Start Location")
+
+start_lat = st.sidebar.number_input(
+    "Start Latitude",
+    value=DEFAULT_START_LAT,
+    format="%.6f"
+)
+
+start_lon = st.sidebar.number_input(
+    "Start Longitude",
+    value=DEFAULT_START_LON,
+    format="%.6f"
+)
+
+
+# ---------------------------------------------------------
+# Destination
+# ---------------------------------------------------------
+
+st.sidebar.subheader("Destination")
+
+end_lat = st.sidebar.number_input(
+    "Destination Latitude",
+    value=DEFAULT_END_LAT,
+    format="%.6f"
+)
+
+end_lon = st.sidebar.number_input(
+    "Destination Longitude",
+    value=DEFAULT_END_LON,
+    format="%.6f"
+)
+
+
+# ---------------------------------------------------------
+# Search radius
+# ---------------------------------------------------------
+
+st.sidebar.subheader("OSM Road Network")
+
+dist = st.sidebar.slider(
+    "Road network radius (meters)",
+    min_value=1000,
+    max_value=15000,
+    value=5000,
+    step=500
+)
+
+
+# ---------------------------------------------------------
+# Risk weight
+# ---------------------------------------------------------
+
+st.sidebar.subheader("Risk Model")
+
+alpha = st.sidebar.slider(
+    "Risk weight",
+    min_value=0.0,
+    max_value=0.20,
+    value=0.05,
+    step=0.01
+)
+
+
+beta = st.sidebar.slider(
+    "Disruption penalty",
+    min_value=0.0,
+    max_value=30.0,
+    value=15.0,
+    step=1.0
+)
+
+
+# =========================================================
+# 6. RUN ROUTING
+# =========================================================
+
+run_route = st.sidebar.button(
+    "🚀 Calculate Routes",
+    type="primary"
+)
+
+
+# =========================================================
+# 7. ROUTING FUNCTION
+# =========================================================
+
+def calculate_routes(
+    start_lat,
+    start_lon,
+    end_lat,
+    end_lon,
+    dist,
+    alpha,
+    beta,
+    risk_df
+):
+
+    # -----------------------------------------------------
+    # Download OpenStreetMap road network
+    # -----------------------------------------------------
+
+    G = osm.graph_from_point(
+        (
+            start_lat,
+            start_lon
+        ),
+        dist=dist,
+        network_type="drive"
+    )
+
+    # -----------------------------------------------------
+    # Project graph
+    # -----------------------------------------------------
+
+    G = osm.project_graph(G)
+
+    # -----------------------------------------------------
+    # Convert input coordinates into projected coordinates
+    # -----------------------------------------------------
+
+    start_gdf = osm.projection.project_gdf(
+        osm.geocode_to_gdf(
+            f"{start_lat}, {start_lon}"
+        )
+    )
+
+    # -----------------------------------------------------
+    # Instead of using projected coordinates from geocoding,
+    # convert the original coordinates using graph CRS.
+    # -----------------------------------------------------
+
+    import geopandas as gpd
+
+    start_point = gpd.GeoSeries(
+        [
+            gpd.points_from_xy(
+                [start_lon],
+                [start_lat]
+            )[0]
+        ],
+        crs="EPSG:4326"
+    )
+
+    end_point = gpd.GeoSeries(
+        [
+            gpd.points_from_xy(
+                [end_lon],
+                [end_lat]
+            )[0]
+        ],
+        crs="EPSG:4326"
+    )
+
+    start_point = start_point.to_crs(
+        G.graph["crs"]
+    )
+
+    end_point = end_point.to_crs(
+        G.graph["crs"]
+    )
+
+    # -----------------------------------------------------
+    # Find nearest graph nodes
+    # -----------------------------------------------------
+
+    orig_node = osm.distance.nearest_nodes(
+        G,
+        X=start_point.geometry.x.iloc[0],
+        Y=start_point.geometry.y.iloc[0]
+    )
+
+    dest_node = osm.distance.nearest_nodes(
+        G,
+        X=end_point.geometry.x.iloc[0],
+        Y=end_point.geometry.y.iloc[0]
+    )
+
+    # -----------------------------------------------------
+    # Create risk lookup
+    # -----------------------------------------------------
+
+    risk_lookup = {}
+
+    for _, row in risk_df.iterrows():
+
+        road_id = str(
+            row["road_id"]
+        )
+
+        risk_lookup[road_id] = {
+            "risk_score": float(
+                row["risk_score"]
+            ),
+            "predicted_disruption": int(
+                row["predicted_disruption"]
+            )
+        }
+
+    # -----------------------------------------------------
+    # Add risk attributes to every road edge
+    # -----------------------------------------------------
+
+    for u, v, key, data in G.edges(
+        keys=True,
+        data=True
+    ):
+
+        # OSM way ID
+        osmid = data.get(
+            "osmid",
+            None
+        )
+
+        # OSMnx may store osmid as a list
+        if isinstance(
+            osmid,
+            list
+        ):
+
+            osmid_list = osmid
+
+        else:
+
+            osmid_list = [osmid]
+
+        risk_score = 0.0
+        predicted_disruption = 0
+
+        # -------------------------------------------------
+        # Try matching OSM way ID to CSV
+        # -------------------------------------------------
+
+        for osm_id in osmid_list:
+
+            if osm_id is None:
+                continue
+
+            road_id = f"way/{osm_id}"
+
+            if road_id in risk_lookup:
+
+                risk_score = risk_lookup[
+                    road_id
+                ]["risk_score"]
+
+                predicted_disruption = risk_lookup[
+                    road_id
+                ]["predicted_disruption"]
+
+                break
+
+        # -------------------------------------------------
+        # Store attributes
+        # -------------------------------------------------
+
+        data["risk_score_val"] = risk_score
+
+        data["is_disrupted"] = predicted_disruption
+
+        # -------------------------------------------------
+        # Distance
+        # -------------------------------------------------
+
+        length = data.get(
+            "length",
+            1
+        )
+
+        # -------------------------------------------------
+        # Risk penalty
+        #
+        # Higher risk = higher routing cost
+        # -------------------------------------------------
+
+        risk_penalty = (
+            1
+            + (
+                alpha
+                * risk_score
+            )
+            + (
+                beta
+                * predicted_disruption
+            )
+        )
+
+        data["risk_cost"] = (
+            length
+            * risk_penalty
+        )
+
+    # -----------------------------------------------------
+    # STANDARD SHORTEST ROUTE
+    # -----------------------------------------------------
+
+    try:
+
+        std_route = nx.shortest_path(
+            G,
+            orig_node,
+            dest_node,
+            weight="length"
+        )
+
+    except nx.NetworkXNoPath:
+
+        raise ValueError(
+            "No standard route found."
+        )
+
+    # -----------------------------------------------------
+    # RISK-AWARE ROUTE
+    # -----------------------------------------------------
+
+    try:
+
+        risk_route = nx.shortest_path(
+            G,
+            orig_node,
+            dest_node,
+            weight="risk_cost"
+        )
+
+    except nx.NetworkXNoPath:
+
+        raise ValueError(
+            "No risk-aware route found."
+        )
+
+    # -----------------------------------------------------
+    # ROUTE STATISTICS
+    # -----------------------------------------------------
+
+    def get_route_stats(
+        graph,
+        route
+    ):
+
+        total_distance = 0.0
+
+        total_risk = 0.0
+
+        disrupted_edges = 0
+
+        edge_count = 0
+
+        for u, v in zip(
+            route[:-1],
+            route[1:]
+        ):
+
+            edge_data = graph.get_edge_data(
+                u,
+                v
+            )
+
+            if not edge_data:
+                continue
+
+            # -------------------------------------------------
+            # Select the edge with the smallest risk cost
+            # -------------------------------------------------
+
+            edge = min(
+                edge_data.values(),
+                key=lambda x: x.get(
+                    "risk_cost",
+                    x.get(
+                        "length",
+                        float("inf")
+                    )
+                )
+            )
+
+            total_distance += edge.get(
+                "length",
+                0
+            )
+
+            total_risk += edge.get(
+                "risk_score_val",
+                0
+            )
+
+            disrupted_edges += edge.get(
+                "is_disrupted",
+                0
+            )
+
+            edge_count += 1
+
+        # -----------------------------------------------------
+        # Average risk
+        # -----------------------------------------------------
+
+        if edge_count > 0:
+
+            average_risk = (
+                total_risk
+                / edge_count
+            )
+
+        else:
+
+            average_risk = 0
+
+        return {
+
+            "distance_km":
+                total_distance / 1000,
+
+            "average_risk":
+                average_risk,
+
+            "disrupted_edges":
+                disrupted_edges,
+
+            "edge_count":
+                edge_count
+        }
+
+    # -----------------------------------------------------
+    # Calculate statistics
+    # -----------------------------------------------------
+
+    std_stats = get_route_stats(
+        G,
+        std_route
+    )
+
+    risk_stats = get_route_stats(
+        G,
+        risk_route
+    )
+
+    return (
+        G,
+        std_route,
+        risk_route,
+        std_stats,
+        risk_stats
+    )
+
+
+# =========================================================
+# 8. RUN CALCULATION
+# =========================================================
+
+if run_route:
+
+    with st.spinner(
+        "Downloading road network and calculating routes..."
+    ):
+
         try:
-            location = geolocator.geocode(search_place)
-            if location:
-                default_lat, default_lon = location.latitude, location.longitude
-                st.sidebar.success(f"Found: {location.address[:35]}...")
-            else:
-                st.sidebar.warning("Location not found. Using default coordinates.")
-        except Exception:
-            st.sidebar.warning("Geocoding service busy. Using default coordinates.")
-    elif CITY_PRESETS[selected_preset] is not None:
-        default_lat, default_lon = CITY_PRESETS[selected_preset]
 
-    st.sidebar.markdown("**Route Coordinates:**")
-    start_lat = st.sidebar.number_input("Start Latitude", value=float(default_lat), format="%.4f")
-    start_lon = st.sidebar.number_input("Start Longitude", value=float(default_lon), format="%.4f")
+            (
+                G,
+                std_route,
+                risk_route,
+                std_stats,
+                risk_stats
+            ) = calculate_routes(
+                start_lat,
+                start_lon,
+                end_lat,
+                end_lon,
+                dist,
+                alpha,
+                beta,
+                risk_df
+            )
 
-    end_lat = st.sidebar.number_input("End Latitude", value=float(default_lat + 0.0155), format="%.4f")
-    end_lon = st.sidebar.number_input("End Longitude", value=float(default_lon + 0.0138), format="%.4f")
+            st.session_state[
+                "G"
+            ] = G
 
-    search_radius = st.sidebar.slider("Road Network Coverage Radius (meters)", 1000, 10000, 3500, step=500)
+            st.session_state[
+                "std_route"
+            ] = std_route
 
-    with st.spinner("Downloading road network graph for selected location..."):
-        G_raw = load_road_network_by_coords(start_lat, start_lon, dist=search_radius)
-        G = apply_risk_weights(G_raw, risk_lookup, alpha, beta)
+            st.session_state[
+                "risk_route"
+            ] = risk_route
 
-    # ---------------------------------------------------------
-    # 7. ROUTING ENGINE CALCULATION
-    # ---------------------------------------------------------
-    orig_node = osm.distance.nearest_nodes(G, X=start_lon, Y=start_lat)
-    dest_node = osm.distance.nearest_nodes(G, X=end_lon, Y=end_lat)
+            st.session_state[
+                "std_stats"
+            ] = std_stats
 
-    std_route = nx.shortest_path(G, orig_node, dest_node, weight='length')
-    std_distance = sum(G[u][v][0]['length'] for u, v in zip(std_route[:-1], std_route[1:])) / 1000.0
+            st.session_state[
+                "risk_stats"
+            ] = risk_stats
 
-    risk_route = nx.shortest_path(G, orig_node, dest_node, weight='risk_cost')
-    risk_distance = sum(G[u][v][0]['length'] for u, v in zip(risk_route[:-1], risk_route[1:])) / 1000.0
+            st.success(
+                "Routes calculated successfully!"
+            )
 
-    def calc_route_risk(G_graph, path):
-        total_risk = 0
-        disruptions = 0
-        for u, v in zip(path[:-1], path[1:]):
-            edge_data = G_graph[u][v][0]
-            total_risk += edge_data.get('risk_score_val', 0)
-            disruptions += edge_data.get('is_disrupted', 0)
-        avg_risk = total_risk / len(path) if len(path) > 0 else 0
-        return avg_risk, disruptions
+        except Exception as e:
 
-    std_avg_risk, std_disruptions = calc_route_risk(G, std_route)
-    risk_avg_risk, risk_disruptions = calc_route_risk(G, risk_route)
+            st.error(
+                f"Routing failed: {e}"
+            )
 
-    # ---------------------------------------------------------
-    # 8. DASHBOARD METRICS DISPLAY
-    # ---------------------------------------------------------
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Standard Path Distance", f"{std_distance:.2f} km")
-    col2.metric("Safe Path Distance", f"{risk_distance:.2f} km", delta=f"{risk_distance - std_distance:.2f} km")
-    col3.metric("Standard Path Avg Risk", f"{std_avg_risk:.1f}", delta=f"{std_avg_risk - risk_avg_risk:.1f}", delta_color="inverse")
-    col4.metric("Disrupted Edges Avoided", f"{std_disruptions - risk_disruptions} Blockages")
+            st.stop()
 
-    # ---------------------------------------------------------
-    # 9. MAP VISUALIZATION WITH TILE CONTROL
-    # ---------------------------------------------------------
-    m = folium.Map(location=[start_lat, start_lon], zoom_start=13, tiles="OpenStreetMap")
 
-    folium.TileLayer(
-        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        attr="Esri World Imagery",
-        name="Satellite View"
-    ).add_to(m)
+# =========================================================
+# 9. DISPLAY RESULTS
+# =========================================================
 
-    folium.LayerControl().add_to(m)
+if (
+    "std_route"
+    in st.session_state
+):
 
-    std_coords = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in std_route]
+    G = st.session_state[
+        "G"
+    ]
+
+    std_route = st.session_state[
+        "std_route"
+    ]
+
+    risk_route = st.session_state[
+        "risk_route"
+    ]
+
+    std_stats = st.session_state[
+        "std_stats"
+    ]
+
+    risk_stats = st.session_state[
+        "risk_stats"
+    ]
+
+
+    # =====================================================
+    # 9A. STANDARD ROUTE
+    # =====================================================
+
+    st.subheader(
+        "🚗 Standard Shortest Route"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Distance",
+            f"{std_stats['distance_km']:.2f} km"
+        )
+
+    with col2:
+
+        st.metric(
+            "Average Risk",
+            f"{std_stats['average_risk']:.2f}"
+        )
+
+    with col3:
+
+        st.metric(
+            "Disrupted Roads",
+            std_stats["disrupted_edges"]
+        )
+
+
+    # =====================================================
+    # 9B. RISK-AWARE ROUTE
+    # =====================================================
+
+    st.subheader(
+        "🛡️ Risk-Aware Route"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Distance",
+            f"{risk_stats['distance_km']:.2f} km"
+        )
+
+    with col2:
+
+        st.metric(
+            "Average Risk",
+            f"{risk_stats['average_risk']:.2f}"
+        )
+
+    with col3:
+
+        st.metric(
+            "Disrupted Roads",
+            risk_stats["disrupted_edges"]
+        )
+
+
+    # =====================================================
+    # 9C. COMPARISON
+    # =====================================================
+
+    st.subheader(
+        "📊 Route Comparison"
+    )
+
+    distance_difference = (
+        risk_stats["distance_km"]
+        - std_stats["distance_km"]
+    )
+
+    risk_difference = (
+        risk_stats["average_risk"]
+        - std_stats["average_risk"]
+    )
+
+    disruption_difference = (
+        risk_stats["disrupted_edges"]
+        - std_stats["disrupted_edges"]
+    )
+
+    comparison_df = pd.DataFrame(
+        {
+            "Metric": [
+                "Distance (km)",
+                "Average Risk",
+                "Disrupted Roads"
+            ],
+
+            "Standard Route": [
+                std_stats[
+                    "distance_km"
+                ],
+
+                std_stats[
+                    "average_risk"
+                ],
+
+                std_stats[
+                    "disrupted_edges"
+                ]
+            ],
+
+            "Risk-Aware Route": [
+                risk_stats[
+                    "distance_km"
+                ],
+
+                risk_stats[
+                    "average_risk"
+                ],
+
+                risk_stats[
+                    "disrupted_edges"
+                ]
+            ]
+        }
+    )
+
+    st.dataframe(
+        comparison_df,
+        use_container_width=True
+    )
+
+
+    # =====================================================
+    # 9D. ROUTING INSIGHT
+    # =====================================================
+
+    st.subheader(
+        "🧠 Routing Insight"
+    )
+
+    if (
+        risk_stats["average_risk"]
+        < std_stats["average_risk"]
+    ):
+
+        st.success(
+            f"""
+            The risk-aware route reduces average road risk
+            by approximately
+            {abs(risk_difference):.2f}
+            risk points.
+            
+            Additional distance:
+            {max(distance_difference, 0):.2f} km.
+            """
+        )
+
+    elif (
+        risk_stats["average_risk"]
+        > std_stats["average_risk"]
+    ):
+
+        st.warning(
+            """
+            The current risk weighting did not produce
+            a lower-risk route for this origin and destination.
+            
+            Try increasing the Risk Weight or Disruption
+            Penalty from the sidebar.
+            """
+        )
+
+    else:
+
+        st.info(
+            "Both routes have approximately the same average risk."
+        )
+
+
+    # =====================================================
+    # 10. MAP
+    # =====================================================
+
+    st.subheader(
+        "🗺️ GIS Route Map"
+    )
+
+    # -----------------------------------------------------
+    # Convert graph back to latitude/longitude
+    # -----------------------------------------------------
+
+    G_map = osm.project_graph(
+        G,
+        to_crs="EPSG:4326"
+    )
+
+    # -----------------------------------------------------
+    # Route coordinates
+    # -----------------------------------------------------
+
+    def route_to_coordinates(
+        graph,
+        route
+    ):
+
+        coordinates = []
+
+        for node in route:
+
+            x = graph.nodes[
+                node
+            ]["x"]
+
+            y = graph.nodes[
+                node
+            ]["y"]
+
+            coordinates.append(
+                [y, x]
+            )
+
+        return coordinates
+
+
+    std_coordinates = route_to_coordinates(
+        G_map,
+        std_route
+    )
+
+    risk_coordinates = route_to_coordinates(
+        G_map,
+        risk_route
+    )
+
+
+    # -----------------------------------------------------
+    # Map center
+    # -----------------------------------------------------
+
+    map_center = [
+        (
+            start_lat
+            + end_lat
+        ) / 2,
+
+        (
+            start_lon
+            + end_lon
+        ) / 2
+    ]
+
+
+    route_map = folium.Map(
+        location=map_center,
+        zoom_start=13,
+        tiles="OpenStreetMap"
+    )
+
+
+    # =====================================================
+    # STANDARD ROUTE
+    # =====================================================
+
     folium.PolyLine(
-        std_coords, 
-        color="red", 
-        weight=5, 
-        opacity=0.6, 
-        tooltip="Standard Route (Unsafe Path)"
-    ).add_to(m)
+        std_coordinates,
+        weight=6,
+        opacity=0.7,
+        tooltip=(
+            "🚗 Standard Shortest Route"
+        )
+    ).add_to(
+        route_map
+    )
 
-    risk_coords = [(G.nodes[n]['y'], G.nodes[n]['x']) for n in risk_route]
+
+    # =====================================================
+    # RISK-AWARE ROUTE
+    # =====================================================
+
     folium.PolyLine(
-        risk_coords, 
-        color="green", 
-        weight=6, 
-        opacity=0.9, 
-        tooltip="AI Safe Route (Risk-Optimized)"
-    ).add_to(m)
+        risk_coordinates,
+        weight=6,
+        opacity=0.9,
+        tooltip=(
+            "🛡️ Risk-Aware Route"
+        )
+    ).add_to(
+        route_map
+    )
 
-    folium.Marker([start_lat, start_lon], popup="Origin", icon=folium.Icon(color="blue", icon="play")).add_to(m)
-    folium.Marker([end_lat, end_lon], popup="Destination", icon=folium.Icon(color="black", icon="flag")).add_to(m)
 
-    st_folium(m, width=1100, height=550)
+    # =====================================================
+    # START MARKER
+    # =====================================================
+
+    folium.Marker(
+        location=[
+            start_lat,
+            start_lon
+        ],
+        popup="START",
+        tooltip="Start Location",
+        icon=folium.Icon(
+            icon="play",
+            prefix="fa"
+        )
+    ).add_to(
+        route_map
+    )
+
+
+    # =====================================================
+    # DESTINATION MARKER
+    # =====================================================
+
+    folium.Marker(
+        location=[
+            end_lat,
+            end_lon
+        ],
+        popup="DESTINATION",
+        tooltip="Destination",
+        icon=folium.Icon(
+            icon="flag",
+            prefix="fa"
+        )
+    ).add_to(
+        route_map
+    )
+
+
+    # =====================================================
+    # DISPLAY MAP
+    # =====================================================
+
+    st_folium(
+        route_map,
+        width=None,
+        height=650
+    )
+
+
+# =========================================================
+# 11. DATABASE INFORMATION
+# =========================================================
+
+st.sidebar.markdown("---")
+
+st.sidebar.subheader(
+    "📊 Risk Database"
+)
+
+st.sidebar.write(
+    f"Road records: **{len(risk_df)}**"
+)
+
+st.sidebar.write(
+    f"Average risk: **{risk_df['risk_score'].mean():.2f}**"
+)
+
+st.sidebar.write(
+    f"Maximum risk: **{risk_df['risk_score'].max():.2f}**"
+)
+
+st.sidebar.write(
+    "Predicted disruptions: "
+    f"**{int(risk_df['predicted_disruption'].sum())}**"
+)
+
+
+# =========================================================
+# 12. FOOTER
+# =========================================================
+
+st.markdown("---")
+
+st.caption(
+    "NER Logistics Accessibility Intelligence Platform "
+    "| GIS + Risk-Aware Routing Prototype"
+)
