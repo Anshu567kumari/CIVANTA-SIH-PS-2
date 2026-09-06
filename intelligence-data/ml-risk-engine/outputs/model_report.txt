@@ -1,0 +1,67 @@
+P3 ML/Risk Engine - Model Report
+========================================
+Dataset: road_risk_data_relabeled_noisy.csv, 1401 roads
+Class balance: 25.5% disruption_occurred=1
+
+Model comparison (held-out 20% test set):
+Model                                          Precision     Recall         F1    ROC-AUC
+Rule-based (score>=2)                              0.633      0.694      0.662        n/a
+Logistic Regression                                0.591      0.181      0.277      0.780
+Random Forest                                      0.643      0.500      0.562      0.814
+Decision Tree                                      0.399      0.764      0.524      0.700
+Gradient Boosting (untuned)                        0.667      0.472      0.553      0.829
+Gradient Boosting (regularized + calibrated, thr=0.35)      0.547      0.722      0.623      0.838
+
+5-fold cross-validation, Gradient Boosting (untuned), whole dataset:
+  PRECISION: 0.625 +/- 0.067
+  RECALL: 0.446 +/- 0.062
+  F1: 0.515 +/- 0.042
+  ROC_AUC: 0.796 +/- 0.024
+
+Threshold sweep, regularized+calibrated Gradient Boosting (test set):
+ threshold  precision     recall         f1
+      0.20      0.423      0.917      0.579
+      0.25      0.439      0.903      0.591
+      0.30      0.469      0.847      0.604
+      0.35      0.547      0.722      0.623
+      0.40      0.632      0.500      0.558
+      0.45      0.707      0.403      0.513
+      0.50      0.757      0.389      0.514
+      0.60      0.773      0.236      0.362
+  -> chosen threshold: 0.35
+
+Feature importance (from untuned Gradient Boosting, easiest to interpret):
+  num__records__rainfall_7d_mm                  0.2617
+  num__records__slope_deg                       0.2168
+  num__records__nearest_landslide_distance_km   0.1782
+  num__records__elevation_m                     0.0932
+  num__records__road_length_km                  0.0910
+  num__records__historical_landslide_count      0.0838
+  num__records__rainfall_24h_mm                 0.0240
+  num__records__rainfall_3d_mm                  0.0198
+  cat__records__road_type_tertiary              0.0155
+  cat__records__road_type_secondary             0.0123
+  cat__records__road_type_trunk                 0.0020
+  cat__records__road_type_primary               0.0010
+  cat__records__road_type_tertiary_link         0.0006
+  cat__records__road_type_secondary_link        0.0000
+  cat__records__road_type_trunk_link            0.0000
+  cat__records__road_type_primary_link          0.0000
+
+Risk score distribution (final model, whole dataset):
+count    1401.000000
+mean       26.126952
+std        22.638667
+min         5.210000
+25%         5.210000
+50%        21.880000
+75%        38.020000
+max        96.670000
+
+Notes:
+- disruption_occurred is a documented probabilistic proxy label, not real
+  historical incident data (see project README for the exact formula).
+- The rule-based baseline (score>=2) is included above because it is a
+  strong reference point given how the label was constructed - the ML
+  models are not expected to trivially beat it, and any gap should be
+  explained rather than hidden.

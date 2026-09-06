@@ -1,0 +1,61 @@
+incident_id,road_id,timestamp,incident_type,severity,description,source
+SIMI-0059,way/1267059101,2026-07-15T01:08:43,vehicle_breakdown,high,"Private vehicle breakdown reported, minor congestion behind it.",simulated
+SIMI-0058,way/1200772287,2026-07-15T05:26:53,landslide,low,"Small landslide reported near the road shoulder, minor debris on the surface.",simulated
+SIMI-0006,way/565103166,2026-07-15T06:34:18,accident,high,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0023,way/1303670337,2026-07-15T07:25:39,waterlogging,high,"Water pooling near a low-lying stretch, minor delays reported.",simulated
+SIMI-0036,way/407995793,2026-07-15T08:08:14,waterlogging,medium,"Standing water on the road surface, reduced visibility of lane markings.",simulated
+SIMI-0053,way/662909143,2026-07-15T08:09:13,vehicle_breakdown,low,"Truck broken down on the shoulder, partially obstructing traffic.",simulated
+SIMI-0020,way/611185348,2026-07-15T19:36:59,waterlogging,medium,"Standing water on the road surface, reduced visibility of lane markings.",simulated
+SIMI-0002,way/157587548,2026-07-15T20:01:43,road_blockage,medium,"Temporary obstruction from a stalled vehicle, traffic backing up.",simulated
+SIMI-0009,way/51188915,2026-07-15T23:28:15,accident,medium,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0042,way/543623719,2026-07-16T00:41:36,vehicle_breakdown,medium,"Private vehicle breakdown reported, minor congestion behind it.",simulated
+SIMI-0039,way/543640150,2026-07-16T05:45:19,vehicle_breakdown,medium,"Truck broken down on the shoulder, partially obstructing traffic.",simulated
+SIMI-0027,way/543627488,2026-07-16T05:45:51,waterlogging,low,"Standing water on the road surface, reduced visibility of lane markings.",simulated
+SIMI-0019,way/1125145372,2026-07-16T06:09:26,waterlogging,medium,"Section flooded after continuous rain, vehicles slowing to cross.",simulated
+SIMI-0007,way/51188932,2026-07-16T10:06:23,vehicle_breakdown,medium,"Private vehicle breakdown reported, minor congestion behind it.",simulated
+SIMI-0008,way/761342360,2026-07-16T13:40:23,waterlogging,low,"Section flooded after continuous rain, vehicles slowing to cross.",simulated
+SIMI-0050,way/517941876,2026-07-16T14:09:06,vehicle_breakdown,low,"Private vehicle breakdown reported, minor congestion behind it.",simulated
+SIMI-0055,way/157587549,2026-07-16T14:10:40,road_blockage,low,"Temporary obstruction from a stalled vehicle, traffic backing up.",simulated
+SIMI-0010,way/713586648,2026-07-16T15:52:57,landslide,medium,"Slope failure on the uphill side, one lane obstructed by fallen rock and soil.",simulated
+SIMI-0048,way/1316335231,2026-07-16T18:34:34,road_blockage,medium,Construction debris left on the shoulder narrowing the usable road width.,simulated
+SIMI-0024,way/543623710,2026-07-16T19:16:06,landslide,medium,"Slope failure on the uphill side, one lane obstructed by fallen rock and soil.",simulated
+SIMI-0047,way/881785716,2026-07-16T20:01:32,landslide,high,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0022,way/51188920,2026-07-16T20:03:32,road_blockage,low,Construction debris left on the shoulder narrowing the usable road width.,simulated
+SIMI-0014,way/1303639556,2026-07-17T05:06:40,landslide,medium,"Small landslide reported near the road shoulder, minor debris on the surface.",simulated
+SIMI-0035,way/51188934,2026-07-17T10:13:49,landslide,medium,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0012,way/114812791,2026-07-17T19:12:40,landslide,medium,"Slope failure on the uphill side, one lane obstructed by fallen rock and soil.",simulated
+SIMI-0005,way/977963756,2026-07-18T10:53:40,accident,high,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0004,way/51252628,2026-07-18T18:10:46,road_blockage,low,Construction debris left on the shoulder narrowing the usable road width.,simulated
+SIMI-0033,way/1013969997,2026-07-19T00:01:18,accident,medium,"Rear-end collision reported near a junction, traffic slowed.",simulated
+SIMI-0021,way/1391116406,2026-07-19T03:02:52,vehicle_breakdown,medium,"Truck broken down on the shoulder, partially obstructing traffic.",simulated
+SIMI-0038,way/713385005,2026-07-19T05:48:17,road_blockage,medium,Construction debris left on the shoulder narrowing the usable road width.,simulated
+SIMI-0001,way/543646780,2026-07-19T05:59:48,vehicle_breakdown,low,"Private vehicle breakdown reported, minor congestion behind it.",simulated
+SIMI-0032,way/565333180,2026-07-19T07:36:14,accident,medium,"Minor collision between two vehicles, one lane affected.",simulated
+SIMI-0029,way/261074454,2026-07-19T09:22:04,landslide,low,"Small landslide reported near the road shoulder, minor debris on the surface.",simulated
+SIMI-0025,way/157584898,2026-07-19T10:04:13,road_blockage,high,Construction debris left on the shoulder narrowing the usable road width.,simulated
+SIMI-0045,way/507819548,2026-07-19T19:17:46,accident,low,"Rear-end collision reported near a junction, traffic slowed.",simulated
+SIMI-0052,way/122030738,2026-07-20T06:21:22,landslide,high,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0044,way/1266997778,2026-07-20T06:23:23,road_blockage,low,Fallen tree branch blocking part of the carriageway.,simulated
+SIMI-0026,way/122027972,2026-07-20T15:43:45,waterlogging,low,"Section flooded after continuous rain, vehicles slowing to cross.",simulated
+SIMI-0060,way/1124976974,2026-07-20T17:54:53,accident,low,"Minor collision between two vehicles, one lane affected.",simulated
+SIMI-0041,way/734350783,2026-07-20T19:39:24,road_blockage,high,Fallen tree branch blocking part of the carriageway.,simulated
+SIMI-0040,way/1134706100,2026-07-20T20:34:58,landslide,low,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0057,way/51188915,2026-07-21T02:06:57,road_blockage,high,"Temporary obstruction from a stalled vehicle, traffic backing up.",simulated
+SIMI-0015,way/122030766,2026-07-21T11:42:39,landslide,low,"Slope failure on the uphill side, one lane obstructed by fallen rock and soil.",simulated
+SIMI-0051,way/1391116408,2026-07-22T21:13:53,landslide,high,"Small landslide reported near the road shoulder, minor debris on the surface.",simulated
+SIMI-0049,way/1267017651,2026-07-22T23:26:35,road_blockage,medium,"Temporary obstruction from a stalled vehicle, traffic backing up.",simulated
+SIMI-0013,way/713328876,2026-07-22T23:48:24,landslide,low,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0056,way/740099635,2026-07-23T00:57:35,landslide,high,"Slope failure on the uphill side, one lane obstructed by fallen rock and soil.",simulated
+SIMI-0017,way/1135713427,2026-07-23T04:57:27,vehicle_breakdown,high,"Private vehicle breakdown reported, minor congestion behind it.",simulated
+SIMI-0016,way/497520981,2026-07-23T09:07:15,landslide,high,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0028,way/1303639550,2026-07-23T09:34:34,accident,high,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0037,way/1214448839,2026-07-23T09:42:41,accident,medium,"Minor collision between two vehicles, one lane affected.",simulated
+SIMI-0031,way/1140719455,2026-07-23T10:46:55,waterlogging,high,"Standing water on the road surface, reduced visibility of lane markings.",simulated
+SIMI-0003,way/1144942346,2026-07-23T11:01:41,accident,high,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0011,way/51252625,2026-07-23T13:45:10,accident,high,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0046,way/1124976974,2026-07-23T19:06:46,waterlogging,high,"Standing water on the road surface, reduced visibility of lane markings.",simulated
+SIMI-0030,way/1133623082,2026-07-24T04:49:30,landslide,medium,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0054,way/1267021994,2026-07-24T06:26:16,landslide,medium,"Debris and mud across the carriageway after heavy rainfall, partial blockage.",simulated
+SIMI-0043,way/1298049689,2026-07-24T11:51:44,accident,low,"Vehicle skidded off the road on a wet curve, no major injuries reported.",simulated
+SIMI-0018,way/1316348116,2026-07-24T16:23:50,accident,medium,"Rear-end collision reported near a junction, traffic slowed.",simulated
+SIMI-0034,way/51189492,2026-07-24T18:47:14,road_blockage,medium,Fallen tree branch blocking part of the carriageway.,simulated

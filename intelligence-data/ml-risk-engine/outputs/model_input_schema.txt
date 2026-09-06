@@ -1,0 +1,38 @@
+P3 ML/Risk Engine - Model Input Schema
+
+The exported artifact is a dict with keys: model, features, categorical_features,
+numeric_features, classification_threshold, risk_score_definition,
+calibration_method, model_type, model_parameters.
+
+artifact['model'] is a CalibratedClassifierCV wrapping a Pipeline
+(preprocessing + GradientBoostingClassifier). Call artifact['model'].predict_proba(row)[:, 1]
+on a single-row DataFrame with exactly the columns listed below, in any order
+(pandas matches by column name, not position).
+
+Required input columns and types:
+  - records__road_type: categorical/string
+  - records__road_length_km: numeric
+  - records__elevation_m: numeric
+  - records__slope_deg: numeric
+  - records__historical_landslide_count: numeric
+  - records__nearest_landslide_distance_km: numeric
+  - records__rainfall_24h_mm: numeric
+  - records__rainfall_3d_mm: numeric
+  - records__rainfall_7d_mm: numeric
+
+Excluded from model inputs (never pass these in):
+  - records__road_id, records__road_name
+  - records__latitude, records__longitude (spatial logic is owned by
+    the GIS/routing teammate, not this model)
+  - metadata__* columns
+  - high_slope, high_historical_landslide, nearby_landslide, high_rainfall
+  - disruption_risk_score, disruption_occurred
+
+Classification threshold: 0.35
+  predicted_disruption = 1 if predict_proba >= threshold else 0
+  This threshold was chosen from a precision/recall sweep on the held-out test
+  set (see model_report.txt) balancing precision and recall - not the default 0.5,
+  because the positive class is imbalanced (~25%).
+
+Accessibility Risk Score = calibrated_probability * 100, range 0-100.
+Output is keyed by road_id in road_risk_scores.csv.
